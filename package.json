@@ -1,0 +1,46 @@
+{
+  "name": "fastify-csp",
+  "version": "0.0.1",
+  "description": "Fastify plugin to set Content-Security-Policy header",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/poppinlp/fastify-csp.git"
+  },
+  "keywords": [
+    "fastify",
+    "fastify-plugin",
+    "helmet",
+    "csp"
+  ],
+  "author": "PoppinL",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/poppinlp/fastify-csp/issues"
+  },
+  "homepage": "https://github.com/poppinlp/fastify-csp#readme",
+  "engines": {
+    "node": ">= 6"
+  },
+  "dependencies": {
+    "camelize": "^1.0.0",
+    "content-security-policy-builder": "^2.0.0",
+    "fastify-plugin": "^1.0.1",
+    "lodash.camelcase": "^4.3.0",
+    "lodash.kebabcase": "^4.1.1",
+    "lodash.reduce": "^4.6.0",
+    "platform": "^1.3.5"
+  },
+  "devDependencies": {
+    "eslint": "^4.19.1",
+    "eslint-config-handsome": "^0.5.0",
+    "eslint-config-prettier": "^2.9.0",
+    "prettier": "^1.13.3"
+  },
+  "peerDependencies": {
+    "fastify": "^1.0.0"
+  }
+}
