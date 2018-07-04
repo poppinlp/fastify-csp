@@ -1,6 +1,6 @@
 {
   "name": "fastify-csp",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Fastify plugin to set Content-Security-Policy header",
   "main": "src/index.js",
   "scripts": {
