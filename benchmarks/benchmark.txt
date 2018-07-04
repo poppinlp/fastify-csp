@@ -1,0 +1,8 @@
+node version: v10.5.0
+platform: darwin
+cpus: [{"model":"Intel(R) Core(TM) i7-5557U CPU @ 3.10GHz","speed":3100,"times":{"user":53411580,"nice":0,"sys":29275060,"idle":210922490,"irq":0}},{"model":"Intel(R) Core(TM) i7-5557U CPU @ 3.10GHz","speed":3100,"times":{"user":28318560,"nice":0,"sys":12358080,"idle":252915230,"irq":0}},{"model":"Intel(R) Core(TM) i7-5557U CPU @ 3.10GHz","speed":3100,"times":{"user":51217240,"nice":0,"sys":24685440,"idle":217689220,"irq":0}},{"model":"Intel(R) Core(TM) i7-5557U CPU @ 3.10GHz","speed":3100,"times":{"user":28861200,"nice":0,"sys":12015250,"idle":252715370,"irq":0}}]
+
+Average req/sec in 3 times 10s test:
+with no plugin: 22282.00
+with helmet-csp middleware: 13914.37
+with fastify-csp plugin: 21109.52

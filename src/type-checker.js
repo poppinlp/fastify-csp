@@ -1,40 +1,41 @@
 const { isBool, isFun, isStr, isArr } = require('./helper');
+const error = require('./error');
 
 const typeMap = {
 	directives: {
-		'base-uri': { type: 'sourceList' },
-		'block-all-mixed-content': { type: 'boolean' },
-		'child-src': { type: 'sourceList' },
-		'connect-src': { type: 'sourceList' },
-		'default-src': {
+		baseUri: { type: 'sourceList' },
+		blockAllMixedContent: { type: 'boolean' },
+		childSrc: { type: 'sourceList' },
+		connectSrc: { type: 'sourceList' },
+		defaultSrc: {
 			type: 'sourceList',
 			hasStrictDynamic: true
 		},
-		'font-src': { type: 'sourceList' },
-		'form-action': { type: 'sourceList' },
-		'frame-ancestors': { type: 'sourceList' },
-		'frame-src': { type: 'sourceList' },
-		'img-src': { type: 'sourceList' },
-		'manifest-src': { type: 'sourceList' },
-		'media-src': { type: 'sourceList' },
-		'object-src': { type: 'sourceList' },
-		'script-src': {
+		fontSrc: { type: 'sourceList' },
+		formAction: { type: 'sourceList' },
+		frameAncestors: { type: 'sourceList' },
+		frameSrc: { type: 'sourceList' },
+		imgSrc: { type: 'sourceList' },
+		manifestSrc: { type: 'sourceList' },
+		mediaSrc: { type: 'sourceList' },
+		objectSrc: { type: 'sourceList' },
+		scriptSrc: {
 			type: 'sourceList',
 			hasUnsafes: true,
 			hasStrictDynamic: true
 		},
-		'style-src': {
+		styleSrc: {
 			type: 'sourceList',
 			hasUnsafes: true
 		},
-		'prefetch-src': { type: 'sourceList' },
-		'plugin-types': { type: 'pluginTypes' },
+		prefetchSrc: { type: 'sourceList' },
+		pluginTypes: { type: 'pluginTypes' },
 		sandbox: { type: 'sandbox' },
-		'report-to': { type: 'reportUri' },
-		'report-uri': { type: 'reportUri' },
-		'require-sri-for': { type: 'requireSriFor' },
-		'upgrade-insecure-requests': { type: 'boolean' },
-		'worker-src': {
+		reportTo: { type: 'reportUri' },
+		reportUri: { type: 'reportUri' },
+		requireSriFor: { type: 'requireSriFor' },
+		upgradeInsecureRequests: { type: 'boolean' },
+		workerSrc: {
 			type: 'sourceList',
 			hasUnsafes: true
 		}
@@ -44,7 +45,7 @@ const typeMap = {
 	unsafes: new Set(["'unsafe-inline'", 'unsafe-inline', "'unsafe-eval'", 'unsafe-eval']),
 	strictDynamics: new Set(["'strict-dynamic'", 'strict-dynamic']),
 	requireSriForValues: new Set(['script', 'style']),
-	sandboxDirectives: new Set([
+	sandboxValues: new Set([
 		'allow-forms',
 		'allow-modals',
 		'allow-orientation-lock',
@@ -59,77 +60,77 @@ const typeMap = {
 };
 
 const checkSourceList = (value, name, typeInfo) => {
-	if (value === false) return true;
-	if (!isArr(value) || value.length === 0) return false;
+	if (value === false) return;
+	if (!isArr(value) || value.length === 0) {
+		throw error.directiveNotArray(value, name);
+	}
 
 	value.forEach(sourceExp => {
 		if (isFun(sourceExp)) return;
 		if (!sourceExp || !isStr(sourceExp) || sourceExp.length === 0) {
-			throw new Error(`"${sourceExp}" is not a valid expression in ${name}.`);
+			throw error.directiveNotValidValue(sourceExp, name);
 		}
 		if (
 			(!typeInfo.hasUnsafes && typeMap.unsafes.has(sourceExp)) ||
 			(!typeInfo.hasStrictDynamic && typeMap.strictDynamics.has(sourceExp))
 		) {
-			throw new Error(`"${sourceExp}" does not make sense in ${name}.`);
+			throw error.directiveNotMakeSense(sourceExp, name);
 		}
 		if (typeMap.mustQuote.has(sourceExp)) {
-      throw new Error(`"${sourceExp}" must be quoted in ${name}. Change it to "'${sourceExp}'" in your option.`)
-    }
+			throw error.directiveMustQuoted(sourceExp, name);
+		}
 	});
-
-	return true;
+};
+const checkBoolean = (value, name) => {
+	if (!isBool(value)) {
+		throw error.directiveNotValidValue(value, name);
+	}
 };
 const checkPluginTypes = (value, name) => {
-	if (value === false) return true;
-	if (!isArr(value) || value.length === 0) return false;
+	if (value === false) return;
+	if (!isArr(value) || value.length === 0) {
+		throw error.directiveNotArray(value, name);
+	}
+
 	const notAllowed = new Set(['self', `'self'`]);
 
 	value.forEach(pluginType => {
 		if (isFun(pluginType)) return;
 		if (!pluginType || !isStr(pluginType) || pluginType === 0) {
-			throw new Error(`"${pluginType}" is not a valid expression in ${name}.`);
+			throw error.directiveNotValidValue(pluginType, name);
 		}
 		if (typeMap.unsafes.has(pluginType) || notAllowed.has(pluginType)) {
-			throw new Error(`"${pluginType}" does not make sense in ${name}.`);
+			throw error.directiveNotMakeSense(pluginType, name);
 		}
 		if (typeMap.mustQuote.has(pluginType)) {
-      throw new Error(`"${pluginType}" must be quoted in ${name}. Change it to "'${pluginType}'" in your option.`)
-    }
+			throw error.directiveMustQuoted(pluginType, name);
+		}
 	});
-
-	return true;
 };
 const checkSandbox = (value, name) => {
-	if (isBool(value)) return true;
-	if (!isArr(value) || value.length === 0) return false;
+	if (isBool(value)) return;
+	if (!isArr(value) || value.length === 0) {
+		throw error.directiveNotArray(value, name);
+	}
 
 	value.forEach(exp => {
 		if (isFun(exp)) return;
-		if (typeMap.sandboxDirectives.has(exp)) {
-			throw new Error(`"${exp}" is not a valid directive in ${name}.`)
-		}
+		if (!typeMap.sandboxValues.has(exp)) throw error.directiveNotValidValue(exp, name);
 	});
-
-	return true;
 };
 const checkReportUri = (value, name) => {
-	if (value === false || isFun(value)) return true;
-	if (!isStr(value) || value.length === 0) {
-		throw new Error(`"${value}" is not a valid value for ${name}.`);
-	}
+	if (value === false || isFun(value)) return;
+	if (!isStr(value) || value.length === 0) throw error.directiveNotValidValue(value, name);
 };
 const checkRequireSriFor = (value, name) => {
-	if (!isArr(value) || value.length === 0) return false;
+	if (!isArr(value) || value.length === 0) {
+		throw error.directiveNotArray(value, name);
+	}
 
 	value.forEach(exp => {
 		if (isFun(exp)) return;
-		if (typeMap.requireSriForValues.has(exp)) {
-			throw new Error(`"${exp}" is not a valid value in ${name}.`);
-		}
+		if (!typeMap.requireSriForValues.has(exp)) throw error.directiveNotValidValue(exp, name);
 	});
-
-	return true;
 };
 const checkMethod = {
 	sourceList: checkSourceList,
@@ -137,12 +138,10 @@ const checkMethod = {
 	sandbox: checkSandbox,
 	reportUri: checkReportUri,
 	requireSriFor: checkRequireSriFor,
-	boolean: isBool
+	boolean: checkBoolean
 };
 const checker = (name, value, typeInfo) => {
-	if (!checkMethod[typeInfo.type](value, name, typeInfo)) {
-		throw new TypeError(`"${value}" is not a valid value for ${name}`);
-	}
+	checkMethod[typeInfo.type](value, name, typeInfo);
 };
 
 module.exports = { checker, typeMap };

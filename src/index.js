@@ -1,97 +1,78 @@
 const fp = require('fastify-plugin');
 const platform = require('platform');
-const kebab = require('lodash.kebabcase');
-const camelize = require('camelize');
-const cspBuilder = require('content-security-policy-builder');
 
-const { isObj, isFun, containsFunction, parseDynamicDirectives } = require('./helper');
+const { isFun, containsFunction, parseDynamicDirectives } = require('./helper');
+const { typeMap } = require('./type-checker');
 const getHeaderKeysForBrowser = require('./sniff-header');
 const transformDirectivesForBrowser = require('./sniff-directive');
-const { checker, typeMap } = require('./type-checker');
+const validOpts = require('./valid-opts');
+const cspBuilder = require('./csp-builder');
 
-const checkOptions = opts => {
-	if (!isObj(opts)) {
-		throw new TypeError('The passed in option should be an object.');
-	}
-	if (!isObj(opts.directives)) {
-		throw new TypeError('The passed in option should have "directives" key as an object.');
-	}
+const csp = (app, opts, next) => {
+	opts.browserSniff = opts.browserSniff === undefined ? true : opts.browserSniff;
 
-	const directives = Object.entries(opts.directives);
-
-	if (directives.length === 0) {
-		throw new Error('The directives object should have at least one directive.');
+	try {
+		validOpts(opts);
+	} catch (err) {
+		next(err);
+		return;
 	}
 
-	!opts.loose && directives.forEach(([key, directive]) => {
-		const name = kebab(key);
-
-		if (!typeMap.directives[name]) {
-			throw new Error(`No such directive named ${name}.`);
-		}
-		checker(name, directive, typeMap.directives[name]);
-	});
-};
-
-const csp = (app, opts = {}, next) => {
-	checkOptions(opts);
-
-	const originalDirectives = camelize(opts.directives || {});
-	const directivesAreDynamic = containsFunction(originalDirectives);
-	const reportOnlyIsFunction = isFun(opts.reportOnly)
-
+	const directivesAreDynamic = containsFunction(opts.directives);
+	const reportOnlyIsFunction = isFun(opts.reportOnly);
 	const noSniffHeaderKeys = opts.setAllHeaders ? typeMap.allHeaders : ['Content-Security-Policy'];
+	const staticNoSniffPolicy = cspBuilder(opts.directives);
+	const cache = directivesAreDynamic ? {} : require('lru-cache')({
+		max: 1000
+	});
 
 	app.addHook('onSend', (request, reply, payload, next) => {
+		const ua = request.headers['user-agent'];
+
 		let headerKeys;
+		let policy;
 
-		if (opts.browserSniff) {
-			const ua = request.headers['user-agent'];
-			const browser = ua ? platform.parse(ua) : {};
+		if (!opts.browserSniff || !ua) {
+			headerKeys = noSniffHeaderKeys;
+			policy = directivesAreDynamic
+				? cspBuilder(parseDynamicDirectives(opts.directives, request, reply))
+				: staticNoSniffPolicy;
+		} else if (!directivesAreDynamic && cache.has(ua)) {
+			const cacheData = cache.get(ua);
+			headerKeys = cacheData.headerKeys;
+			policy = cacheData.policy;
+		} else {
+			const browser = platform.parse(ua);
+			const sniffData = {
+				name: browser.name,
+				version: parseFloat(browser.version),
+				osVersion: browser.os.version,
+				osFamily: browser.os.family,
+				disableAndroid: opts.disableAndroid
+			};
 
-			headerKeys = (opts.setAllHeaders || !ua) ? typeMap.allHeaders : getHeaderKeysForBrowser(browser, opts);
+			headerKeys = opts.setAllHeaders ? typeMap.allHeaders : getHeaderKeysForBrowser(sniffData);
 
 			if (headerKeys.length === 0) {
 				next();
 				return;
 			}
 
-			let directives = transformDirectivesForBrowser(browser, originalDirectives)
+			const directives = transformDirectivesForBrowser(sniffData, opts.directives);
 
-			if (directivesAreDynamic) {
-				directives = parseDynamicDirectives(directives, [request, reply])
-			}
+			policy = directivesAreDynamic
+				? cspBuilder(parseDynamicDirectives(directives, request, reply))
+				: cspBuilder(directives);
 
-			const policyString = cspBuilder({ directives })
+			!directivesAreDynamic && cache.set(ua, { headerKeys, policy });
+		}
 
-			headerKeys.forEach(headerKey => {
-				let header = headerKey;
-
-				if (
-					(reportOnlyIsFunction && opts.reportOnly(request, reply)) ||
-					(!reportOnlyIsFunction && opts.reportOnly)
-				) {
-					header += '-Report-Only'
-				}
-
-				reply.header(header, policyString)
-			});
-		} else {
-			const directives = parseDynamicDirectives(originalDirectives, [request, reply]);
-			const policyString = cspBuilder({ directives });
-
-			noSniffHeaderKeys.forEach(headerKey => {
-				let header = headerKey;
-
-				if (
-					(reportOnlyIsFunction && opts.reportOnly(request, reply)) ||
-					(!reportOnlyIsFunction && opts.reportOnly)
-				) {
-					header += '-Report-Only'
-				}
-
-				reply.header(header, policyString)
-			});
+		for (let i = 0; i < headerKeys.length; i++) {
+			const header = headerKeys[i];
+			const isReportOnly =
+				(reportOnlyIsFunction && opts.reportOnly(request, reply)) ||
+				(!reportOnlyIsFunction && opts.reportOnly);
+			reply.header(isReportOnly ? `${header}-Report-Only` : header, policy);
 		}
 
 		next();
