@@ -4,32 +4,6 @@ import parseCsp from 'content-security-policy-parser';
 import plugin from '../src/index';
 import UA from './ua.json';
 
-const POLICY = {
-	directives: {
-		defaultSrc: ["'self'"],
-		scriptSrc: ['scripts.biz'],
-		styleSrc: ['styles.biz', (request, reply) => reply.locals.nonce],
-		objectSrc: ["'none'"],
-		imgSrc: ['data:'],
-		mediaSrc: false,
-		prefetchSrc: ['prefetch.example.com'],
-		reportTo: '/report',
-		requireSriFor: ['script'],
-		upgradeInsecureRequests: true
-	}
-};
-const EXPECTED_POLICY = {
-	'default-src': ["'self'"],
-	'script-src': ['scripts.biz'],
-	'style-src': ['styles.biz', 'abc123'],
-	'object-src': ["'none'"],
-	'img-src': ['data:'],
-	'prefetch-src': ['prefetch.example.com'],
-	'report-to': ['/report'],
-	'require-sri-for': ['script'],
-	'upgrade-insecure-requests': []
-};
-
 test.beforeEach(t => {
 	const app = fastify();
 

@@ -4,14 +4,6 @@ import parseCsp from 'content-security-policy-parser';
 import plugin from '../src/index';
 import UA from './ua.json';
 
-const POLICY = {
-	defaultSrc: ["'self'"],
-	scriptSrc: ['scripts.biz'],
-	styleSrc: ['styles.biz', (request, reply) => reply.locals.nonce],
-	objectSrc: ["'none'"],
-	imgSrc: ['data:']
-};
-
 test.beforeEach(t => {
 	const app = fastify();
 
